@@ -12,6 +12,8 @@ git_release_enable = true
 git_release_type = "auto"
 # Release PR branches follow the branching model (release/*), not the default `release-plz-`.
 pr_branch_prefix = "release/"
+# Release PR titles follow the imperative commit style; the default is "chore: release vX.Y.Z".
+pr_name = "Release{% if version %} v{{ version }}{% endif %}"
 # Commits are imperative ("Add X", "Fix Y"), not Conventional Commits: map verbs to bumps.
 custom_minor_increment_regex = "^(Add|Introduce|Support|Allow|Implement|Expose)\\b"
 custom_major_increment_regex = "(?m)^BREAKING CHANGE:|^Break\\b"
@@ -21,6 +23,8 @@ custom_major_increment_regex = "(?m)^BREAKING CHANGE:|^Break\\b"
 [changelog]
 commit_parsers = [
   { message = "^(Merge|Release|Bump version)\\b", skip = true },
+  # Release PRs merged before pr_name was set carry release-plz's default title.
+  { message = "^chore: release\\b", skip = true },
   # Dependabot subjects carry an ecosystem prefix (.github/dependabot.yml).
   { message = "^Actions: ", skip = true },
   { message = "^(Add|Introduce|Support|Allow|Implement|Expose)\\b", group = "Added" },
