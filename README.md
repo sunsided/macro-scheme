@@ -16,6 +16,14 @@ cargo run --example compare -- abaababaabaab
 # z (LZ77) = 6, lex-parse = 5, b (opt) = 4  [Copy { src: 5, len: 6 }, …]  ← first phrase points right
 ```
 
+## Who is it for
+
+- **Researchers in string algorithms and compressed data structures** who study repetitiveness measures and want to compute `δ`, `z`, lex-parse and the exact `b` on small texts side by side.
+- **Authors of new parsers or encoders** who need a correct decoder with cycle detection, and an exact optimum to test their results against.
+- **Students** who want to see in running code how a copy that points forward can still decode.
+
+It is not a production compressor. The encoders use naive `O(n²)` (or worse) construction, there is no compact serialization yet, and the exact optimizer is exponential. See the [roadmap](#roadmap) for what is planned.
+
 ## Usage
 
 ```rust
