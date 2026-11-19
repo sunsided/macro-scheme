@@ -6,11 +6,28 @@
 //! position eventually reaches a literal; the smallest valid scheme has size
 //! `b`, a fundamental (NP-hard) repetitiveness measure with
 //! `δ ≤ γ ≤ b ≤ z` (substring complexity, attractor size, LZ77 phrases).
+//!
+//! ```mermaid
+//! flowchart LR
+//!   text[text] --> lz77["encode::lz77<br/>size z"]
+//!   text --> lex["encode::lex_parse<br/>size ≤ 2r"]
+//!   text --> opt["optimal::brute_force<br/>size b"]
+//!   lz77 --> scheme[MacroScheme]
+//!   lex --> scheme
+//!   opt --> scheme
+//!   scheme --> decode["decode / validate"]
+//!   decode --> out["text or InvalidScheme"]
+//! ```
 
 pub mod encode;
 pub mod measures;
 pub mod optimal;
 mod suffix;
+
+/// Doctests for the code examples in README.md (not part of the API).
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+mod readme_doctests {}
 
 use std::fmt;
 

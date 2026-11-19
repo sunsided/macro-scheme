@@ -8,6 +8,10 @@ rust-version = "1.85"
 repository = "https://github.com/sunsided/macro-scheme"
 readme = "README.md"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--html-in-header", "docs/mermaid.html"]
+
 [dependencies]
 arbitrary = { version = "1.5.0", features = ["derive"], optional = true }
 
