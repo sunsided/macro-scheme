@@ -7,8 +7,43 @@ license = "MIT OR Apache-2.0"
 rust-version = "1.85"
 repository = "https://github.com/sunsided/macro-scheme"
 readme = "README.md"
+keywords = ["macro-scheme", "lz77", "compression", "repetitiveness", "string-algorithms"]
+categories = ["compression", "algorithms", "text-processing"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--html-in-header", "docs/mermaid.html"]
 
 [dependencies]
+arbitrary = { version = "1.5.0", features = ["derive"], optional = true }
 
 [dev-dependencies]
+criterion = "0.7.0"
 proptest = "1"
+
+[features]
+arbitrary = ["dep:arbitrary"]
+
+[lints.rust]
+missing_docs = "warn"
+# Safe by default. If a crate needs unsafe, use "deny" here instead and scope
+# #[expect(unsafe_code, reason = "...")] to the smallest item (forbid cannot be overridden).
+unsafe_code = "forbid"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+mod_module_files = "deny"
+missing_docs_in_private_items = "warn"
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"
+cognitive_complexity = "warn"
+
+[lints.rustdoc]
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "allow"
+
+[[bench]]
+name = "encoders"
+harness = false
