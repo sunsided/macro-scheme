@@ -69,7 +69,8 @@ jobs:
         id: check
         # The first release of a crate is published by hand, and re-runs must be harmless.
         run: |
-          status="$(curl -s -o /dev/null -w '%{http_code}' -A "$GITHUB_REPOSITORY publish workflow" \
+          # Retries cover transient 429/5xx answers and connection errors; the timeout bounds a stall.
+          status="$(curl -sS --max-time 30 --retry 3 --retry-all-errors -o /dev/null -w '%{http_code}' -A "$GITHUB_REPOSITORY publish workflow" \
             "https://crates.io/api/v1/crates/$CRATE/$VERSION")"
           # Only 404 means "not published"; anything else (429, 5xx, 000) must not publish blindly.
           case "$status" in
