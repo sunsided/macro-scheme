@@ -9,6 +9,7 @@
 
 pub mod encode;
 pub mod measures;
+pub mod optimal;
 mod suffix;
 
 use std::fmt;
