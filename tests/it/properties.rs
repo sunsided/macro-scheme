@@ -1,5 +1,6 @@
 //! Property tests: encoder round-trips, the measure hierarchy, and decoding robustness.
 
+use crate::as_f64;
 use crate::strategies::{any_scheme, small_alphabet};
 use macro_scheme::encode::{lex_parse, lz77};
 use macro_scheme::{measures, optimal};
@@ -19,7 +20,7 @@ proptest! {
         let b = optimal::brute_force(&t);
 
         prop_assert_eq!(b.decode().unwrap(), t.clone());
-        prop_assert!(b.size() as f64 >= measures::delta(&t) - 1e-12);
+        prop_assert!(as_f64(b.size()) >= measures::delta(&t) - 1e-12);
         prop_assert!(b.size() <= measures::z(&t));
         prop_assert!(b.size() <= lex_parse(&t).size());
     }

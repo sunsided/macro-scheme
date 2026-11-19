@@ -33,18 +33,26 @@ mod readme_doctests {}
 
 use std::fmt;
 
+/// One phrase of a [`MacroScheme`]: a literal byte, or a copy of earlier or later text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum Phrase {
+    /// The byte itself, stored verbatim; every pointer chain must end at one.
     Literal(u8),
     /// Copy `len` bytes starting at text position `src`.
+    ///
+    /// The source may lie before or after the phrase, and may overlap it.
     Copy {
+        /// Zero-based text position of the first copied byte.
         src: usize,
+        /// Number of copied bytes; a valid scheme never has `0` here.
         len: usize,
     },
 }
 
 impl Phrase {
+    /// Number of text bytes this phrase covers: `1` for a literal, `len` for a copy.
+    #[must_use]
     pub fn len(&self) -> usize {
         match self {
             Phrase::Literal(_) => 1,
@@ -52,21 +60,29 @@ impl Phrase {
         }
     }
 
+    /// Returns `true` for a zero-length copy, which no valid scheme contains.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 }
 
+/// Why a [`MacroScheme`] does not describe a text.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InvalidScheme {
+    /// A copy phrase has `len == 0`.
     EmptyCopy {
+        /// Index of the offending phrase in [`MacroScheme::phrases`].
         phrase: usize,
     },
+    /// A copy's source range `src..src + len` reaches past the end of the text.
     SourceOutOfBounds {
+        /// Index of the offending phrase in [`MacroScheme::phrases`].
         phrase: usize,
     },
     /// Following copy pointers from `position` never reaches a literal.
     Cycle {
+        /// Text position that was revisited while following pointers.
         position: usize,
     },
     /// The phrase lengths add up to more than `usize::MAX`.
@@ -88,32 +104,52 @@ impl fmt::Display for InvalidScheme {
 
 impl std::error::Error for InvalidScheme {}
 
+/// A parsing of a text into [`Phrase`]s whose copies may point in either direction.
+///
+/// Construction does not validate; [`decode`](Self::decode) and
+/// [`validate`](Self::validate) do.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct MacroScheme {
+    /// The phrases in text order; phrase `i` starts where phrase `i - 1` ends.
     phrases: Vec<Phrase>,
 }
 
 impl MacroScheme {
     /// Wraps phrases without validating them; see [`validate`](Self::validate).
+    #[must_use]
     pub fn new(phrases: Vec<Phrase>) -> Self {
         Self { phrases }
     }
 
+    /// The phrases in text order.
+    #[must_use]
     pub fn phrases(&self) -> &[Phrase] {
         &self.phrases
     }
 
     /// Number of phrases: the size measure being minimized.
+    #[must_use]
     pub fn size(&self) -> usize {
         self.phrases.len()
     }
 
-    /// Length of the text this scheme describes.
+    /// Length of the text this scheme describes, saturating at `usize::MAX`.
+    ///
+    /// [`decode`](Self::decode) rejects schemes whose length overflows with
+    /// [`InvalidScheme::TooLong`].
+    #[must_use]
     pub fn text_len(&self) -> usize {
-        self.phrases.iter().map(Phrase::len).sum()
+        self.phrases
+            .iter()
+            .fold(0, |n, p| n.saturating_add(p.len()))
     }
 
+    /// Checks that the scheme describes a text, by decoding it.
+    ///
+    /// # Errors
+    ///
+    /// The same as [`decode`](Self::decode).
     pub fn validate(&self) -> Result<(), InvalidScheme> {
         self.decode().map(|_| ())
     }
@@ -121,46 +157,21 @@ impl MacroScheme {
     /// Reconstructs the text in `O(n)`: each position's copy pointer is
     /// followed until a literal is reached, memoizing along the way. A
     /// pointer chain that revisits a position is a cycle.
+    ///
+    /// Every phrase is checked before any buffer is allocated, so untrusted
+    /// schemes cannot request memory beyond the text they validly describe.
+    ///
+    /// # Errors
+    ///
+    /// - [`InvalidScheme::TooLong`] if the phrase lengths overflow `usize`.
+    /// - [`InvalidScheme::EmptyCopy`] for a copy with `len == 0`.
+    /// - [`InvalidScheme::SourceOutOfBounds`] for a copy reaching past the text.
+    /// - [`InvalidScheme::Cycle`] if some position never reaches a literal.
     pub fn decode(&self) -> Result<Vec<u8>, InvalidScheme> {
-        const LITERAL: usize = usize::MAX;
         let n = self.check_phrases()?;
-        let mut out: Vec<Option<u8>> = vec![None; n];
-        let mut target = vec![LITERAL; n];
-        let mut pos = 0;
-        for p in &self.phrases {
-            match *p {
-                Phrase::Literal(b) => out[pos] = Some(b),
-                Phrase::Copy { src, len } => {
-                    for o in 0..len {
-                        target[pos + o] = src + o;
-                    }
-                }
-            }
-            pos += p.len();
-        }
+        let (resolved, target) = self.place_phrases(n);
 
-        let mut on_path = vec![false; n];
-        let mut path = Vec::new();
-        for start in 0..n {
-            let mut cur = start;
-            while out[cur].is_none() {
-                if on_path[cur] {
-                    return Err(InvalidScheme::Cycle { position: cur });
-                }
-                on_path[cur] = true;
-                path.push(cur);
-                cur = target[cur];
-            }
-            let byte = out[cur];
-            for p in path.drain(..) {
-                out[p] = byte;
-                on_path[p] = false;
-            }
-        }
-        Ok(out
-            .into_iter()
-            .map(|b| b.expect("all positions resolved"))
-            .collect())
+        resolve_pointers(resolved, &target)
     }
 
     /// Checks every phrase against the text length before anything is allocated, so a
@@ -186,4 +197,66 @@ impl MacroScheme {
 
         Ok(n)
     }
+
+    /// Lays the phrases out over a text of `n` bytes, which [`check_phrases`](Self::check_phrases)
+    /// returned.
+    ///
+    /// Returns the literal bytes (`None` at copied positions) and, per position, the
+    /// position it copies from (unused at literal positions).
+    fn place_phrases(&self, n: usize) -> (Vec<Option<u8>>, Vec<usize>) {
+        let mut resolved = vec![None; n];
+        let mut target = vec![0; n];
+        let mut pos = 0;
+
+        for p in &self.phrases {
+            match *p {
+                Phrase::Literal(b) => resolved[pos] = Some(b),
+                Phrase::Copy { src, len } => {
+                    for (offset, t) in target[pos..pos + len].iter_mut().enumerate() {
+                        *t = src + offset;
+                    }
+                }
+            }
+
+            pos += p.len();
+        }
+
+        (resolved, target)
+    }
+}
+
+/// Follows the copy pointers in `target` from every unresolved position to a literal,
+/// writing the byte back along the whole chain so each position is walked once.
+///
+/// # Errors
+///
+/// [`InvalidScheme::Cycle`] if a chain revisits a position before reaching a literal.
+fn resolve_pointers(
+    mut resolved: Vec<Option<u8>>,
+    target: &[usize],
+) -> Result<Vec<u8>, InvalidScheme> {
+    let mut on_path = vec![false; resolved.len()];
+    let mut path = Vec::new();
+
+    for start in 0..resolved.len() {
+        let mut cur = start;
+        while resolved[cur].is_none() {
+            if on_path[cur] {
+                return Err(InvalidScheme::Cycle { position: cur });
+            }
+
+            on_path[cur] = true;
+            path.push(cur);
+            cur = target[cur];
+        }
+
+        let byte = resolved[cur];
+        for p in path.drain(..) {
+            resolved[p] = byte;
+            on_path[p] = false;
+        }
+    }
+
+    // Every chain ended at a literal, so every position holds a byte.
+    Ok(resolved.into_iter().flatten().collect())
 }

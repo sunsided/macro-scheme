@@ -1,5 +1,6 @@
 //! Known inputs with known properties.
 
+use crate::as_f64;
 use macro_scheme::encode::lz77;
 use macro_scheme::{measures, optimal};
 
@@ -16,5 +17,5 @@ fn fibonacci_word_fixture() {
 
     assert_eq!(b.decode().unwrap(), t);
     assert!(b.size() <= lz77(t).size());
-    assert!(b.size() as f64 >= measures::delta(t));
+    assert!(as_f64(b.size()) >= measures::delta(t));
 }
