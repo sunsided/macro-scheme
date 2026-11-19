@@ -39,7 +39,9 @@ def subject_problems(subject):
     if subject[:1].islower():
         problems.append("start with a capital letter")
 
-    if first.endswith("ed") and first not in PAST_TENSE_OK:
+    # The last hyphen segment, so "Re-embed" and "Cross-breed" count as embed and breed.
+    last_segment = first.rsplit("-", 1)[-1]
+    if first.endswith("ed") and last_segment not in PAST_TENSE_OK:
         problems.append(f"use the imperative mood, not past tense '{first}'")
 
     if first in THIRD_PERSON:
