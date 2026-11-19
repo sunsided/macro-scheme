@@ -51,7 +51,17 @@ text      a b a a b a | b | a | a b a  a  b
 phrase    Copy{5,6}   | b | a | Copy{0,5}
 ```
 
-**Decoding.** Every copied position points to one source position. Decoding follows the pointers until it reaches a literal. Position 0, for example, goes 0 → 5 → 10 → 2 → 7, and position 7 holds the literal `a`. Each byte found this way is written back along the whole chain, so each position is resolved once and decoding is `O(n)`. If a chain comes back to a position it already passed, it can never reach a literal, and the scheme is rejected as a `Cycle`.
+**Decoding.** A copied position stores no byte. It only says "my byte is the byte at position X". If position `p` lies in a copy phrase that starts at position `start` and copies from `src`, then X is `src + (p - start)`. To find the byte at `p`, decoding looks up X. If X is also a copied position, it looks up X's source, and so on until it reaches a literal. For position 0:
+
+| Step | Position | Phrase it lies in | Offset in phrase | Copies from |
+|---|---|---|---|---|
+| 1 | 0 | `Copy{5,6}`, starts at 0 | 0 | 5 + 0 = 5 |
+| 2 | 5 | `Copy{5,6}`, starts at 0 | 5 | 5 + 5 = 10 |
+| 3 | 10 | `Copy{0,5}`, starts at 8 | 2 | 0 + 2 = 2 |
+| 4 | 2 | `Copy{5,6}`, starts at 0 | 2 | 5 + 2 = 7 |
+| 5 | 7 | `Literal(a)` | | stop: the byte is `a` |
+
+So positions 0, 5, 10 and 2 all hold `a`. The chain jumps right, right, left and right again, which is why decoding cannot simply read from left to right. Once a chain reaches its literal, the byte is written to every position on the way, so each position is looked up only once and decoding is `O(n)`. If a chain comes back to a position it already passed, it can never reach a literal, and the scheme is rejected as a `Cycle`.
 
 **Encoders.** `lz77` only copies from the left, taking the longest earlier match each time. Its pointers always move left, so it cannot form a cycle; its size is `z`. `lex_parse` sorts all suffixes and lets each phrase copy from the suffix just before it in sorted order, for as long as the two agree. Its pointers can move right, but they always lead to a lexicographically smaller suffix, so they cannot loop either.
 
