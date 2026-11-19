@@ -233,6 +233,11 @@ impl MacroScheme {
 /// # Errors
 ///
 /// [`InvalidScheme::Cycle`] if a chain revisits a position before reaching a literal.
+///
+/// # Panics
+///
+/// If a position is still unresolved afterwards, which the loop rules out: every position
+/// either reaches a literal or returns the cycle error.
 fn resolve_pointers(
     mut resolved: Vec<Option<u8>>,
     target: &[usize],
@@ -259,6 +264,9 @@ fn resolve_pointers(
         }
     }
 
-    // Every chain ended at a literal, so every position holds a byte.
-    Ok(resolved.into_iter().flatten().collect())
+    // Every chain ended at a literal, so every position holds a byte; a `None` here is a bug.
+    Ok(resolved
+        .into_iter()
+        .collect::<Option<Vec<u8>>>()
+        .expect("every pointer chain ends at a literal"))
 }

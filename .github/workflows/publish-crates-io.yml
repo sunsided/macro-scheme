@@ -69,12 +69,21 @@ jobs:
         id: check
         # The first release of a crate is published by hand, and re-runs must be harmless.
         run: |
-          status="$(curl -s -o /dev/null -w '%{http_code}' -A "$GITHUB_REPOSITORY publish workflow" \
+          # Retries cover transient 429/5xx answers and connection errors; the timeout bounds a stall.
+          status="$(curl -sS --max-time 30 --retry 3 --retry-all-errors -o /dev/null -w '%{http_code}' -A "$GITHUB_REPOSITORY publish workflow" \
             "https://crates.io/api/v1/crates/$CRATE/$VERSION")"
-          if [ "$status" = 200 ]; then
-            echo "::notice::$CRATE $VERSION is already on crates.io; nothing to publish"
-            echo "published=true" >> "$GITHUB_OUTPUT"
-          fi
+          # Only 404 means "not published"; anything else (429, 5xx, 000) must not publish blindly.
+          case "$status" in
+            200)
+              echo "::notice::$CRATE $VERSION is already on crates.io; nothing to publish"
+              echo "published=true" >> "$GITHUB_OUTPUT"
+              ;;
+            404) ;;
+            *)
+              echo "::error::crates.io answered HTTP $status for $CRATE $VERSION; re-run the job"
+              exit 1
+              ;;
+          esac
         env:
           CRATE: ${{ steps.crate.outputs.name }}
           VERSION: ${{ steps.crate.outputs.version }}

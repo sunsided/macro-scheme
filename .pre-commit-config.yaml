@@ -66,12 +66,15 @@ repos:
         always_run: true
         stages: [pre-push]
 
+      # mermaid-cli is optional locally; skip when it is missing (CI's style job always renders).
       - id: mermaid
         name: mermaid diagrams render
-        entry: task lint:mermaid
+        entry: sh -c 'if command -v mmdc >/dev/null || [ -n "${MMDC:-}" ]; then task lint:mermaid; else echo "mermaid-cli not installed; skipping (CI renders the diagrams)"; fi'
         language: system
         types_or: [markdown, rust]
         pass_filenames: false
+        # Show the skip note; a passing hook's output is hidden otherwise.
+        verbose: true
 
       - id: clippy
         name: clippy (pedantic)
