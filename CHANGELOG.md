@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/sunsided/macro-scheme/compare/v0.1.0...v0.2.0) - 2026-11-19
+
+### Added
+
+- Add a "Who is it for" section to the README
+
+### Changed
+
+- Spell out how a decoding pointer chain is followed
+- Explain how schemes, decoding and the encoders work in the README
+- Return decode's byte buffer without a second copy
+- Pin exact optimum sizes in a test
+- Give release PRs an imperative title
+- Accept hyphenated -ed imperatives in the commit-msg hook
+- Show the mermaid hook's skip note
+- Retry and time-limit the crates.io version check
+- Accept more -ed imperatives in the commit-msg hook
+- Point config comments at files that exist in this repository
+- Assert decode's resolution invariant instead of dropping gaps
+- Skip the mermaid hook when mermaid-cli is not installed
+- Fail the publish job on unexpected crates.io responses
+
+### Fixed
+
+- Correct the complexity in the delta lint reason
+- Correct the complexity in the delta docs
+
 ## [0.1.0](https://github.com/sunsided/macro-scheme/releases/tag/v0.1.0) - 2026-11-19
 
 ### Added
