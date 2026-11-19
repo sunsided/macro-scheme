@@ -158,8 +158,10 @@ impl MacroScheme {
     /// followed until a literal is reached, memoizing along the way. A
     /// pointer chain that revisits a position is a cycle.
     ///
-    /// Every phrase is checked before any buffer is allocated, so untrusted
-    /// schemes cannot request memory beyond the text they validly describe.
+    /// Empty, out-of-bounds and overflowing copies are rejected before any
+    /// buffer is allocated. Otherwise memory is proportional to
+    /// [`text_len`](Self::text_len), even for a scheme that later fails with a
+    /// cycle, so cap `text_len` before decoding untrusted schemes.
     ///
     /// # Errors
     ///

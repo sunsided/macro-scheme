@@ -19,8 +19,9 @@ applyTo: "**/*.rs"
 - `clippy::pedantic` clean. Suppression only with a scoped
   `#[expect(lint, reason = "...")]`. Never `#[allow]`, and never crate-level suppression.
 - No `unsafe`: the crate root has `#![forbid(unsafe_code)]`.
-- `MacroScheme::decode` takes untrusted phrase lists: it validates every phrase before it
-  allocates, and never panics. Changes to it keep the `decode` fuzz target and the
+- `MacroScheme::decode` takes untrusted phrase lists: it rejects empty, out-of-bounds and
+  overflowing copies before it allocates, allocates memory proportional to `text_len()`
+  otherwise, and never panics. Changes to it keep the `decode` fuzz target and the
   `decode_never_panics` property passing.
 - Every encoder returns a valid scheme that decodes to its input; add a round-trip property
   in `tests/it/properties.rs` for each new encoder.
