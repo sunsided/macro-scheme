@@ -7,6 +7,9 @@
 //! `b`, a fundamental (NP-hard) repetitiveness measure with
 //! `δ ≤ γ ≤ b ≤ z` (substring complexity, attractor size, LZ77 phrases).
 
+pub mod encode;
+mod suffix;
+
 use std::fmt;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
