@@ -15,7 +15,11 @@ import sys
 MAX_SUBJECT = 72
 GIT_GENERATED = re.compile(r"^(Merge |Revert \"|fixup! |squash! |amend! )")
 CONVENTIONAL = re.compile(r"^[a-z]+(\([^)]*\))?!?: ")
-PAST_TENSE_OK = {"embed", "feed", "need", "proceed", "seed", "shed", "speed", "succeed", "exceed", "bleed"}
+# Imperatives that end in "ed" but are not past tense.
+PAST_TENSE_OK = {
+    "bed", "bleed", "breed", "embed", "exceed", "feed", "heed", "need", "proceed", "red", "seed",
+    "shed", "shred", "speed", "succeed", "weed",
+}
 THIRD_PERSON = {
     "adds", "allows", "bumps", "changes", "cleans", "creates", "deletes", "documents", "drops",
     "enables", "disables", "ensures", "extracts", "fixes", "handles", "implements", "improves",
@@ -36,7 +40,7 @@ def subject_problems(subject):
         problems.append("start with a capital letter")
 
     if first.endswith("ed") and first not in PAST_TENSE_OK:
-        problems.append(f"use the imperative ('{first[:-2] or first}...'), not past tense '{first}'")
+        problems.append(f"use the imperative mood, not past tense '{first}'")
 
     if first in THIRD_PERSON:
         problems.append(f"use the imperative, not '{first}'")
