@@ -9,3 +9,6 @@ repository = "https://github.com/sunsided/macro-scheme"
 readme = "README.md"
 
 [dependencies]
+
+[dev-dependencies]
+proptest = "1"
