@@ -6,6 +6,7 @@
 [![codecov](https://codecov.io/gh/sunsided/macro-scheme/graph/badge.svg)](https://codecov.io/gh/sunsided/macro-scheme)
 [![MSRV](https://img.shields.io/crates/msrv/macro-scheme)](https://crates.io/crates/macro-scheme)
 [![License](https://img.shields.io/crates/l/macro-scheme)](https://github.com/sunsided/macro-scheme#license)
+[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 
 Bidirectional macro schemes: LZ77-like parsings whose copies may point **forward** as well as backward, valid when every pointer chain ends at a literal. The smallest scheme size `b` is an NP-hard repetitiveness measure, with `δ ≤ γ ≤ b ≤ z`.
 
