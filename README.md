@@ -39,6 +39,24 @@ assert!(brute_force(text).size() <= scheme.size());
 | `measures` | `delta`, `z` |
 | `optimal` | branch-and-bound exact `b`, an oracle for n ≲ 12 |
 
+## How it works
+
+A scheme is a list of phrases that cover the text from left to right. `Literal(b)` stores one byte. `Copy { src, len }` says that the next `len` bytes equal the `len` bytes starting at position `src`. That source may lie before the phrase, after it, or overlap it.
+
+The optimal scheme for `abaababaabaab` has four phrases:
+
+```text
+position  0 1 2 3 4 5 | 6 | 7 | 8 9 10 11 12
+text      a b a a b a | b | a | a b a  a  b
+phrase    Copy{5,6}   | b | a | Copy{0,5}
+```
+
+**Decoding.** Every copied position points to one source position. Decoding follows the pointers until it reaches a literal. Position 0, for example, goes 0 → 5 → 10 → 2 → 7, and position 7 holds the literal `a`. Each byte found this way is written back along the whole chain, so each position is resolved once and decoding is `O(n)`. If a chain comes back to a position it already passed, it can never reach a literal, and the scheme is rejected as a `Cycle`.
+
+**Encoders.** `lz77` only copies from the left, taking the longest earlier match each time. Its pointers always move left, so it cannot form a cycle; its size is `z`. `lex_parse` sorts all suffixes and lets each phrase copy from the suffix just before it in sorted order, for as long as the two agree. Its pointers can move right, but they always lead to a lexicographically smaller suffix, so they cannot loop either.
+
+**Optimum.** `brute_force` starts from the smaller of the two encoder results. It then tries every parsing depth-first, longest copies first. It drops any branch that cannot beat the best scheme so far, and keeps a finished candidate only if it decodes. This is exponential, so use it only on tiny inputs and as a reference for the encoders.
+
 ## Verification
 - Round-trip property tests for every encoder.
 - The hierarchy `δ ≤ b_opt ≤ min(z, lex-parse)` is checked on random strings.
