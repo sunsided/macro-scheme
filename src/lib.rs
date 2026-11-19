@@ -49,6 +49,8 @@ pub enum InvalidScheme {
     Cycle {
         position: usize,
     },
+    /// The phrase lengths add up to more than `usize::MAX`.
+    TooLong,
 }
 
 impl fmt::Display for InvalidScheme {
@@ -59,6 +61,7 @@ impl fmt::Display for InvalidScheme {
                 write!(f, "phrase {phrase} copies from outside the text")
             }
             Self::Cycle { position } => write!(f, "position {position} depends on itself"),
+            Self::TooLong => write!(f, "the text length overflows usize"),
         }
     }
 }
@@ -99,18 +102,14 @@ impl MacroScheme {
     /// pointer chain that revisits a position is a cycle.
     pub fn decode(&self) -> Result<Vec<u8>, InvalidScheme> {
         const LITERAL: usize = usize::MAX;
-        let n = self.text_len();
+        let n = self.check_phrases()?;
         let mut out: Vec<Option<u8>> = vec![None; n];
         let mut target = vec![LITERAL; n];
         let mut pos = 0;
-        for (i, p) in self.phrases.iter().enumerate() {
+        for p in &self.phrases {
             match *p {
                 Phrase::Literal(b) => out[pos] = Some(b),
-                Phrase::Copy { len: 0, .. } => return Err(InvalidScheme::EmptyCopy { phrase: i }),
                 Phrase::Copy { src, len } => {
-                    if src.checked_add(len).is_none_or(|end| end > n) {
-                        return Err(InvalidScheme::SourceOutOfBounds { phrase: i });
-                    }
                     for o in 0..len {
                         target[pos + o] = src + o;
                     }
@@ -141,5 +140,29 @@ impl MacroScheme {
             .into_iter()
             .map(|b| b.expect("all positions resolved"))
             .collect())
+    }
+
+    /// Checks every phrase against the text length before anything is allocated, so a
+    /// malformed scheme cannot request a huge buffer. Returns the text length.
+    fn check_phrases(&self) -> Result<usize, InvalidScheme> {
+        let n = self
+            .phrases
+            .iter()
+            .try_fold(0usize, |n, p| n.checked_add(p.len()))
+            .ok_or(InvalidScheme::TooLong)?;
+
+        for (i, p) in self.phrases.iter().enumerate() {
+            if let Phrase::Copy { src, len } = *p {
+                if len == 0 {
+                    return Err(InvalidScheme::EmptyCopy { phrase: i });
+                }
+
+                if src.checked_add(len).is_none_or(|end| end > n) {
+                    return Err(InvalidScheme::SourceOutOfBounds { phrase: i });
+                }
+            }
+        }
+
+        Ok(n)
     }
 }

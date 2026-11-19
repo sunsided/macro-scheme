@@ -54,3 +54,32 @@ fn fibonacci_word_fixture() {
     assert!(b.size() <= lz77(t).size());
     assert!(b.size() as f64 >= measures::delta(t));
 }
+
+/// Regression (fuzz OOM): an out-of-bounds copy of ~4 GB used to allocate the whole text
+/// before its source was checked.
+#[test]
+fn rejects_huge_out_of_bounds_copy_without_allocating() {
+    let scheme = MacroScheme::new(vec![Phrase::Copy {
+        src: 4_268_053_047_640_996_667,
+        len: 4_282_122_047,
+    }]);
+
+    assert_eq!(
+        scheme.decode(),
+        Err(InvalidScheme::SourceOutOfBounds { phrase: 0 })
+    );
+}
+
+/// Phrase lengths that overflow `usize` are rejected instead of wrapping.
+#[test]
+fn rejects_overflowing_text_length() {
+    let scheme = MacroScheme::new(vec![
+        Phrase::Copy {
+            src: 0,
+            len: usize::MAX,
+        },
+        Phrase::Literal(b'a'),
+    ]);
+
+    assert_eq!(scheme.decode(), Err(InvalidScheme::TooLong));
+}
