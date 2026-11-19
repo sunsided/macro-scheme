@@ -73,6 +73,8 @@ repos:
         language: system
         types_or: [markdown, rust]
         pass_filenames: false
+        # Show the skip note; a passing hook's output is hidden otherwise.
+        verbose: true
 
       - id: clippy
         name: clippy (pedantic)
