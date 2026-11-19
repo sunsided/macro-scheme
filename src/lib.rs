@@ -8,6 +8,7 @@
 //! `δ ≤ γ ≤ b ≤ z` (substring complexity, attractor size, LZ77 phrases).
 
 pub mod encode;
+pub mod measures;
 mod suffix;
 
 use std::fmt;
