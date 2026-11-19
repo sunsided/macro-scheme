@@ -16,6 +16,14 @@ cargo run --example compare -- abaababaabaab
 # z (LZ77) = 6, lex-parse = 5, b (opt) = 4  [Copy { src: 5, len: 6 }, …]  ← first phrase points right
 ```
 
+## Who is it for
+
+- **Researchers in string algorithms and compressed data structures** who study repetitiveness measures and want to compute `δ`, `z`, lex-parse and the exact `b` on small texts side by side.
+- **Authors of new parsers or encoders** who need a correct decoder with cycle detection, and an exact optimum to test their results against.
+- **Students** who want to see in running code how a copy that points forward can still decode.
+
+It is not a production compressor. The encoders use naive `O(n²)` (or worse) construction, there is no compact serialization yet, and the exact optimizer is exponential. See the [roadmap](#roadmap) for what is planned.
+
 ## Usage
 
 ```rust
@@ -38,6 +46,34 @@ assert!(brute_force(text).size() <= scheme.size());
 | `encode` | `lz77` (left-only, size `z`) and `lex_parse` (Navarro, Ochoa & Prezza, size ≤ 2r) |
 | `measures` | `delta`, `z` |
 | `optimal` | branch-and-bound exact `b`, an oracle for n ≲ 12 |
+
+## How it works
+
+A scheme is a list of phrases that cover the text from left to right. `Literal(b)` stores one byte. `Copy { src, len }` says that the next `len` bytes equal the `len` bytes starting at position `src`. That source may lie before the phrase, after it, or overlap it.
+
+The optimal scheme for `abaababaabaab` has four phrases:
+
+```text
+position  0 1 2 3 4 5 | 6 | 7 | 8 9 10 11 12
+text      a b a a b a | b | a | a b a  a  b
+phrase    Copy{5,6}   | b | a | Copy{0,5}
+```
+
+**Decoding.** A copied position stores no byte. It only says "my byte is the byte at position X". If position `p` lies in a copy phrase that starts at position `start` and copies from `src`, then X is `src + (p - start)`. To find the byte at `p`, decoding looks up X. If X is also a copied position, it looks up X's source, and so on until it reaches a literal. For position 0:
+
+| Step | Position | Phrase it lies in | Offset in phrase | Copies from |
+|---|---|---|---|---|
+| 1 | 0 | `Copy{5,6}`, starts at 0 | 0 | 5 + 0 = 5 |
+| 2 | 5 | `Copy{5,6}`, starts at 0 | 5 | 5 + 5 = 10 |
+| 3 | 10 | `Copy{0,5}`, starts at 8 | 2 | 0 + 2 = 2 |
+| 4 | 2 | `Copy{5,6}`, starts at 0 | 2 | 5 + 2 = 7 |
+| 5 | 7 | `Literal(a)` | | stop: the byte is `a` |
+
+So positions 0, 5, 10 and 2 all hold `a`. The chain jumps right, right, left and right again, which is why decoding cannot simply read from left to right. Once a chain reaches its literal, the byte is written to every position on the way, so each position is looked up only once and decoding is `O(n)`. If a chain comes back to a position it already passed, it can never reach a literal, and the scheme is rejected as a `Cycle`.
+
+**Encoders.** `lz77` only copies from the left, taking the longest earlier match each time. Its pointers always move left, so it cannot form a cycle; its size is `z`. `lex_parse` sorts all suffixes and lets each phrase copy from the suffix just before it in sorted order, for as long as the two agree. Its pointers can move right, but they always lead to a lexicographically smaller suffix, so they cannot loop either.
+
+**Optimum.** `brute_force` starts from the smaller of the two encoder results. It then tries every parsing depth-first, longest copies first. It drops any branch that cannot beat the best scheme so far, and keeps a finished candidate only if it decodes. This is exponential, so use it only on tiny inputs and as a reference for the encoders.
 
 ## Verification
 - Round-trip property tests for every encoder.
