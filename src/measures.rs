@@ -3,11 +3,12 @@
 use std::collections::HashSet;
 
 /// Substring complexity `δ = max_k d_k / k`, where `d_k` is the number of
-/// distinct length-`k` substrings. A lower bound on `b`. Naive `O(n²)`.
+/// distinct length-`k` substrings. A lower bound on `b`. Naive `O(n³)`: each of the
+/// `O(n²)` windows is hashed in time proportional to its length.
 #[must_use]
 #[expect(
     clippy::cast_precision_loss,
-    reason = "d_k and k are at most n, far below 2^52 for any text this O(n²) scan can process"
+    reason = "d_k and k are at most n, far below 2^52 for any text this O(n³) scan can process"
 )]
 pub fn delta(t: &[u8]) -> f64 {
     (1..=t.len())

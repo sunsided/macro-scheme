@@ -171,9 +171,9 @@ impl MacroScheme {
     /// - [`InvalidScheme::Cycle`] if some position never reaches a literal.
     pub fn decode(&self) -> Result<Vec<u8>, InvalidScheme> {
         let n = self.check_phrases()?;
-        let (resolved, target) = self.place_phrases(n);
+        let (bytes, marks, target) = self.place_phrases(n);
 
-        resolve_pointers(resolved, &target)
+        resolve_pointers(bytes, marks, &target)
     }
 
     /// Checks every phrase against the text length before anything is allocated, so a
@@ -203,16 +203,20 @@ impl MacroScheme {
     /// Lays the phrases out over a text of `n` bytes, which [`check_phrases`](Self::check_phrases)
     /// returned.
     ///
-    /// Returns the literal bytes (`None` at copied positions) and, per position, the
-    /// position it copies from (unused at literal positions).
-    fn place_phrases(&self, n: usize) -> (Vec<Option<u8>>, Vec<usize>) {
-        let mut resolved = vec![None; n];
+    /// Returns the text bytes (only final at literal positions), a [`Mark`] per position, and
+    /// per position the position it copies from (unused at literal positions).
+    fn place_phrases(&self, n: usize) -> (Vec<u8>, Vec<Mark>, Vec<usize>) {
+        let mut bytes = vec![0; n];
+        let mut marks = vec![Mark::Pending; n];
         let mut target = vec![0; n];
         let mut pos = 0;
 
         for p in &self.phrases {
             match *p {
-                Phrase::Literal(b) => resolved[pos] = Some(b),
+                Phrase::Literal(b) => {
+                    bytes[pos] = b;
+                    marks[pos] = Mark::Resolved;
+                }
                 Phrase::Copy { src, len } => {
                     for (offset, t) in target[pos..pos + len].iter_mut().enumerate() {
                         *t = src + offset;
@@ -223,50 +227,52 @@ impl MacroScheme {
             pos += p.len();
         }
 
-        (resolved, target)
+        (bytes, marks, target)
     }
 }
 
-/// Follows the copy pointers in `target` from every unresolved position to a literal,
+/// How far [`resolve_pointers`] has got with one text position.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Mark {
+    /// A copied position whose byte is not known yet.
+    Pending,
+    /// On the pointer chain being followed right now; reaching it again is a cycle.
+    OnPath,
+    /// Its byte is final: a literal, or a copy whose chain reached one.
+    Resolved,
+}
+
+/// Follows the copy pointers in `target` from every pending position to a literal,
 /// writing the byte back along the whole chain so each position is walked once.
 ///
 /// # Errors
 ///
 /// [`InvalidScheme::Cycle`] if a chain revisits a position before reaching a literal.
-///
-/// # Panics
-///
-/// If a position is still unresolved afterwards, which the loop rules out: every position
-/// either reaches a literal or returns the cycle error.
 fn resolve_pointers(
-    mut resolved: Vec<Option<u8>>,
+    mut bytes: Vec<u8>,
+    mut marks: Vec<Mark>,
     target: &[usize],
 ) -> Result<Vec<u8>, InvalidScheme> {
-    let mut on_path = vec![false; resolved.len()];
     let mut path = Vec::new();
 
-    for start in 0..resolved.len() {
+    for start in 0..bytes.len() {
         let mut cur = start;
-        while resolved[cur].is_none() {
-            if on_path[cur] {
+        while marks[cur] != Mark::Resolved {
+            if marks[cur] == Mark::OnPath {
                 return Err(InvalidScheme::Cycle { position: cur });
             }
 
-            on_path[cur] = true;
+            marks[cur] = Mark::OnPath;
             path.push(cur);
             cur = target[cur];
         }
 
-        let byte = resolved[cur];
+        let byte = bytes[cur];
         for p in path.drain(..) {
-            resolved[p] = byte;
-            on_path[p] = false;
+            bytes[p] = byte;
+            marks[p] = Mark::Resolved;
         }
     }
 
-    // Every chain ended at a literal, so every position holds a byte; a `None` here is a bug.
-    Ok(resolved
-        .into_iter()
-        .collect::<Option<Vec<u8>>>()
-        .expect("every pointer chain ends at a literal"))
+    Ok(bytes)
 }

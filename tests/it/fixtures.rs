@@ -19,3 +19,16 @@ fn fibonacci_word_fixture() {
     assert!(b.size() <= lz77(t).size());
     assert!(as_f64(b.size()) >= measures::delta(t));
 }
+
+/// The optimum matches hand-checked values, so over-eager pruning cannot fall back to an
+/// encoder's larger scheme unnoticed.
+#[test]
+fn optimum_has_known_size() {
+    for (text, b) in [
+        (&b"abaababaabaab"[..], 4),
+        (b"abacabadabacab", 7),
+        (b"aaaa", 2),
+    ] {
+        assert_eq!(optimal::brute_force(text).size(), b, "{text:?}");
+    }
+}
