@@ -7,6 +7,8 @@ license = "MIT OR Apache-2.0"
 rust-version = "1.85"
 repository = "https://github.com/sunsided/macro-scheme"
 readme = "README.md"
+keywords = ["macro-scheme", "lz77", "compression", "repetitiveness", "string-algorithms"]
+categories = ["compression", "algorithms", "text-processing"]
 
 [package.metadata.docs.rs]
 all-features = true
