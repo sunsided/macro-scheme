@@ -15,6 +15,7 @@ mod suffix;
 use std::fmt;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum Phrase {
     Literal(u8),
     /// Copy `len` bytes starting at text position `src`.
@@ -69,6 +70,7 @@ impl fmt::Display for InvalidScheme {
 impl std::error::Error for InvalidScheme {}
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct MacroScheme {
     phrases: Vec<Phrase>,
 }

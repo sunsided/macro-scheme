@@ -9,6 +9,15 @@ repository = "https://github.com/sunsided/macro-scheme"
 readme = "README.md"
 
 [dependencies]
+arbitrary = { version = "1.5.0", features = ["derive"], optional = true }
 
 [dev-dependencies]
+criterion = "0.7.0"
 proptest = "1"
+
+[features]
+arbitrary = ["dep:arbitrary"]
+
+[[bench]]
+name = "encoders"
+harness = false
