@@ -19,6 +19,8 @@
 //!   decode --> out["text or InvalidScheme"]
 //! ```
 
+#![forbid(unsafe_code)]
+
 pub mod encode;
 pub mod measures;
 pub mod optimal;
